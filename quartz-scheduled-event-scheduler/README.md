@@ -7,8 +7,9 @@ An example system showing how to use AWS EventBridge Scheduler for "dynamic" Sch
 There are several parts to this:
 
 1. A backend service that has a RESTful endpoint(s) for
-- Scheduling events in AWS EventBridge Scheduler per instructions in the request.
+- Scheduling events with AWS EventBridge Scheduler per instructions in the request.
 - Receiving events from AWS EventBridge Scheduler and processing them.
+- For Demo sake, a third endpoint is provided to simulate the final event action desired.
 3. An AWS Lambda function that can be triggered by EventBridge Scheduler and push the event payload received by it via HTTP call to another of the backend service's RESTful endpoints where the event can be acted on.
 3. An AWS EventBridge Scheduler Rule setup to support jobs being scheduled with a given JSON payload and when the job processing is due it evokes the above-described lambada and passes it that JSON.
 
