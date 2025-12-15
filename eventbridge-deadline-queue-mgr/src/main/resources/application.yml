@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: event-scheduler
+  datasource:
+    url: jdbc:h2:mem:eventsdb
+    driverClassName: org.h2.Driver
+    username: sa
+    password: password
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+  quartz:
+    # Quartz Configuration: CRITICAL for persistence
+    job-store-type: jdbc
+    jdbc:
+      initialize-schema: always
+    properties:
+      org:
+        quartz:
+          scheduler:
+            # Set the instance name for clustering/identification
+            instanceName: EventSchedulerInstance
+          threadPool:
+            # Set up the thread pool size for concurrent job execution
+            threadCount: 10
+
+logging:
+  level:
+    io:
+      softwarestrategies: DEBUG
+
+application:
+  env: DEV
+  event:
+    source: EventbridgeEventScheduler

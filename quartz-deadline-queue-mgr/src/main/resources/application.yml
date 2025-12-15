@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: event-scheduler
+logging:
+  level:
+    io:
+      softwarestrategies: DEBUG
+
+application:
+  env: DEV
+  event:
+    source: EventbridgeEventScheduler
