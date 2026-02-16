@@ -4,14 +4,14 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.softwarestrategies</groupId>
-    <artifactId>deadline-queue-orchestrator</artifactId>
+    <artifactId>scheduledevent-orchestration</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>deadline-queue-orchestrator</name>
-    <description>Deadline Queue Orchestrator</description>
+    <name>scheduledevent-orchestration</name>
+    <description>Example Modules with different ways to approach Scheduled Event Orchestration</description>
     <packaging>pom</packaging>
 
     <modules>
-        <module>eventbridge-deadline-queue-orchestrator</module>
-        <module>quartz-deadline-queue-orchestrator</module>
+        <module>eventbridge-scheduledevent-orchestrator</module>
+        <module>scheduledevent-orchestrator</module>
     </modules>
 </project>

@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.softwarestrategies</groupId>
-    <artifactId>quartz-deadline-queue-orchestrator</artifactId>
+    <artifactId>quartz-scheduledevent-orchestrator</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>quart-scheduledevent-processor</name>
     <description>Quartz ScheduledEvent Processor system</description>
