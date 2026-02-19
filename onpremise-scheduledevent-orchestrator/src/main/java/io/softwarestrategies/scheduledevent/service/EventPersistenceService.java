@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import io.micrometer.core.instrument.Counter;
 import io.softwarestrategies.scheduledevent.domain.EventStatus;
 import io.softwarestrategies.scheduledevent.domain.ScheduledEvent;
 import io.softwarestrategies.scheduledevent.repository.ScheduledEventRepository;
@@ -23,9 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 public class EventPersistenceService {
 
 	private final ScheduledEventRepository scheduledEventRepository;
-
-	@Value("${app.scheduler.poll-interval-ms:1000}")
-	private long pollIntervalMs;
+	private final Counter eventsFailedCounter;
 
 	@Value("${app.scheduler.batch-size:100}")
 	private int batchSize;
@@ -71,5 +70,46 @@ public class EventPersistenceService {
 		}
 
 		return events;
+	}
+
+	/**
+	 * Reschedule an event for later execution.
+	 */
+	@Transactional
+	public void rescheduleEvent(ScheduledEvent event) {
+		event.setStatus(EventStatus.PENDING);
+		event.setLockedBy(null);
+		event.setLockExpiresAt(null);
+		scheduledEventRepository.save(event);
+		log.debug("Event rescheduled. Id: {}, ScheduledAt: {}", event.getId(), event.getScheduledAt());
+	}
+
+	/**
+	 * Mark event as completed.
+	 */
+	@Transactional
+	public void markEventCompleted(ScheduledEvent event) {
+		event.markCompleted();
+		scheduledEventRepository.save(event);
+		log.debug("Event completed. Id: {}, ExternalJobId: {}", event.getId(), event.getExternalJobId());
+	}
+
+	/**
+	 * Handle delivery failure - retry or dead letter.
+	 */
+	@Transactional
+	public void handleDeliveryFailure(ScheduledEvent event, EventDeliveryService.DeliveryResult result) {
+		event.markFailed(result.error());
+		scheduledEventRepository.save(event);
+
+		if (event.getStatus() == EventStatus.DEAD_LETTER) {
+			log.warn("Event moved to dead letter. Id: {}, ExternalJobId: {}, Error: {}",
+					event.getId(), event.getExternalJobId(), result.error());
+		} else {
+			log.debug("Event will be retried. Id: {}, RetryCount: {}/{}",
+					event.getId(), event.getRetryCount(), event.getMaxRetries());
+		}
+
+		eventsFailedCounter.increment();
 	}
 }

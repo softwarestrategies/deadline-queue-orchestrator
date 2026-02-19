@@ -57,3 +57,6 @@ app:
       execution-kafka: scheduled-events-execution-kafka
     partitions: 24
     replication-factor: 1
+  http-client:
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000

@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import io.micrometer.core.instrument.Counter;
-import io.softwarestrategies.scheduledevent.domain.EventStatus;
 import io.softwarestrategies.scheduledevent.domain.ScheduledEvent;
 import io.softwarestrategies.scheduledevent.repository.ScheduledEventRepository;
 import jakarta.annotation.PreDestroy;
@@ -79,67 +78,26 @@ public class EventSchedulerService {
 			// Check if event should be executed now
 			if (event.getScheduledAt().isAfter(Instant.now())) {
 				// Schedule for later - this shouldn't happen often with proper polling
-				rescheduleEvent(event);
+				eventPersistenceService.rescheduleEvent(event);
 				return;
 			}
 
 			// Deliver the event
-			EventDeliveryService.DeliveryResult result = eventDeliveryService.deliverEvent(event).join();
+			EventDeliveryService.DeliveryResult result = eventDeliveryService.deliverEvent(event);
 
 			if (result.success()) {
-				markEventCompleted(event);
+				eventPersistenceService.markEventCompleted(event);
 				eventsExecutedCounter.increment();
 			} else {
-				handleDeliveryFailure(event, result);
+				eventPersistenceService.handleDeliveryFailure(event, result);
 			}
 
 		} catch (Exception e) {
 			log.error("Unexpected error processing event: {}", event.getId(), e);
-			handleDeliveryFailure(event, EventDeliveryService.DeliveryResult.ofFailure(
+			eventPersistenceService.handleDeliveryFailure(event, EventDeliveryService.DeliveryResult.ofFailure(
 					e.getMessage(), true));
 			eventsFailedCounter.increment();
 		}
-	}
-
-	/**
-	 * Mark event as completed.
-	 */
-	@Transactional
-	public void markEventCompleted(ScheduledEvent event) {
-		event.markCompleted();
-		scheduledEventRepository.save(event);
-		log.debug("Event completed. Id: {}, ExternalJobId: {}", event.getId(), event.getExternalJobId());
-	}
-
-	/**
-	 * Handle delivery failure - retry or dead letter.
-	 */
-	@Transactional
-	public void handleDeliveryFailure(ScheduledEvent event, EventDeliveryService.DeliveryResult result) {
-		event.markFailed(result.error());
-		scheduledEventRepository.save(event);
-
-		if (event.getStatus() == EventStatus.DEAD_LETTER) {
-			log.warn("Event moved to dead letter. Id: {}, ExternalJobId: {}, Error: {}",
-					event.getId(), event.getExternalJobId(), result.error());
-		} else {
-			log.debug("Event will be retried. Id: {}, RetryCount: {}/{}",
-					event.getId(), event.getRetryCount(), event.getMaxRetries());
-		}
-
-		eventsFailedCounter.increment();
-	}
-
-	/**
-	 * Reschedule an event for later execution.
-	 */
-	@Transactional
-	public void rescheduleEvent(ScheduledEvent event) {
-		event.setStatus(EventStatus.PENDING);
-		event.setLockedBy(null);
-		event.setLockExpiresAt(null);
-		scheduledEventRepository.save(event);
-		log.debug("Event rescheduled. Id: {}, ScheduledAt: {}", event.getId(), event.getScheduledAt());
 	}
 
 	/**
