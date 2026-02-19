@@ -12,6 +12,6 @@
 
     <modules>
         <module>eventbridge-scheduledevent-orchestrator</module>
-        <module>scheduledevent-orchestrator</module>
+        <module>onpremise-scheduledevent-orchestrator</module>
     </modules>
 </project>
