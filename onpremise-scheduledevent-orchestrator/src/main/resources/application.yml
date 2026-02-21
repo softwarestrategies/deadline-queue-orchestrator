@@ -37,7 +37,7 @@ spring:
         type: batch
 logging:
   level:
-    io.softwarestrategies.scheduledevent: DEBUG
+    io.softwarestrategies.scheduledevent: INFO
 management:
   endpoints:
     web:
