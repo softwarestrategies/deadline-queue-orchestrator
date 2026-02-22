@@ -149,33 +149,17 @@ public class ScheduledEvent {
 	@Column(name = "lock_expires_at")
 	private Instant lockExpiresAt;
 
-	/**
-	 * Partition key derived from scheduled_at for table partitioning
-	 */
-	@Column(name = "partition_key", nullable = false)
-	private int partitionKey;
-
 	@PrePersist
 	protected void onCreate() {
 		if (createdAt == null) {
 			createdAt = Instant.now();
 		}
 		updatedAt = Instant.now();
-		partitionKey = calculatePartitionKey(scheduledAt);
 	}
 
 	@PreUpdate
 	protected void onUpdate() {
 		updatedAt = Instant.now();
-	}
-
-	/**
-	 * Calculate partition key from scheduled time.
-	 * Uses day-of-year for daily partitions.
-	 */
-	public static int calculatePartitionKey(Instant scheduledAt) {
-		return scheduledAt.atZone(java.time.ZoneOffset.UTC).getDayOfYear()
-				+ (scheduledAt.atZone(java.time.ZoneOffset.UTC).getYear() * 1000);
 	}
 
 	/**

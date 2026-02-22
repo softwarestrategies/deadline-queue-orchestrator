@@ -18,7 +18,7 @@ import java.util.UUID;
  *
  * Uses PostgreSQL-specific features:
  * - SELECT FOR UPDATE SKIP LOCKED for concurrent processing
- * - Partitioned queries via partition_key
+ * - Monthly range partitioning on scheduled_at for efficient queries and cleanup
  */
 @Repository
 public interface ScheduledEventRepository extends JpaRepository<ScheduledEvent, UUID> {
@@ -26,10 +26,12 @@ public interface ScheduledEventRepository extends JpaRepository<ScheduledEvent, 
 	/**
 	 * Find events ready for execution using SELECT FOR UPDATE SKIP LOCKED.
 	 * This allows multiple workers to process events concurrently without conflicts.
+	 * Also recovers stale PROCESSING rows whose locks have expired (e.g. from crashed workers),
+	 * eliminating the need to wait for the periodic releaseExpiredLocks() task.
 	 *
-	 * @param status        Event status to consider (typically PENDING)
 	 * @param scheduledBefore Events scheduled before this time are ready
-	 * @param limit         Maximum number of events to fetch
+	 * @param now             Current time, used for lock expiry checks
+	 * @param limit           Maximum number of events to fetch
 	 * @return List of events ready for processing
 	 */
 	@Query(value = """
@@ -45,7 +47,6 @@ public interface ScheduledEventRepository extends JpaRepository<ScheduledEvent, 
 				FOR UPDATE SKIP LOCKED
             """, nativeQuery = true)
 	List<ScheduledEvent> findAndLockEventsForProcessing(
-			@Param("status") String status,
 			@Param("scheduledBefore") Instant scheduledBefore,
 			@Param("now") Instant now,
 			@Param("limit") int limit);
@@ -114,17 +115,6 @@ public interface ScheduledEventRepository extends JpaRepository<ScheduledEvent, 
             LIMIT :batchSize
             """, nativeQuery = true)
 	int deleteCompletedEventsBefore(@Param("cutoff") Instant cutoff, @Param("batchSize") int batchSize);
-
-	/**
-	 * Delete events by partition key range (for partition management)
-	 */
-	@Modifying
-	@Query(value = """
-            DELETE FROM scheduled_events 
-            WHERE partition_key BETWEEN :startKey AND :endKey
-            AND status IN ('COMPLETED', 'DEAD_LETTER', 'CANCELLED')
-            """, nativeQuery = true)
-	int deleteByPartitionKeyRange(@Param("startKey") int startKey, @Param("endKey") int endKey);
 
 	/**
 	 * Find events due in the immediate future (for pre-loading)

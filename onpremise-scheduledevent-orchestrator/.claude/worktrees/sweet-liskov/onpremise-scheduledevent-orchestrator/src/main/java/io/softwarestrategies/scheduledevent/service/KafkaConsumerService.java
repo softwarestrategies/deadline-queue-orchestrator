@@ -167,7 +167,6 @@ public class KafkaConsumerService {
 				.maxRetries(message.getMaxRetries() != null ? message.getMaxRetries() : 3)
 				.createdAt(Instant.now())
 				.updatedAt(Instant.now())
-				.partitionKey(ScheduledEvent.calculatePartitionKey(message.getScheduledAt()))
 				.build();
 	}
 }

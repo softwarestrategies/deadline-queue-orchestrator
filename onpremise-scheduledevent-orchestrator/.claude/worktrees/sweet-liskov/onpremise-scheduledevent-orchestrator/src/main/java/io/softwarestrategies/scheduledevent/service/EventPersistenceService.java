@@ -51,7 +51,6 @@ public class EventPersistenceService {
 		log.debug("Polling for due events. Now: {}, BatchSize: {}", now, batchSize);
 
 		List<ScheduledEvent> events = scheduledEventRepository.findAndLockEventsForProcessing(
-				EventStatus.PENDING.name(),
 				now,
 				now,
 				batchSize
