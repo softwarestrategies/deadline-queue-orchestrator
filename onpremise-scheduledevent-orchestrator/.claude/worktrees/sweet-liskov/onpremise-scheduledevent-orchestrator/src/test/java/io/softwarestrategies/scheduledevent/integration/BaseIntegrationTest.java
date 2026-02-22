@@ -2,6 +2,7 @@ package io.softwarestrategies.scheduledevent.integration;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -21,8 +22,21 @@ import org.testcontainers.utility.DockerImageName;
 @ActiveProfiles("test")
 public abstract class BaseIntegrationTest {
 
+	protected static final String ADMIN_USERNAME = "admin";
+	protected static final String ADMIN_PASSWORD = "test-admin-password";
+
 	@Autowired
 	protected WebTestClient webTestClient;
+
+	@LocalServerPort
+	protected int port;
+
+	protected WebTestClient adminWebTestClient() {
+		return WebTestClient.bindToServer()
+				.baseUrl("http://localhost:" + port)
+				.defaultHeaders(h -> h.setBasicAuth(ADMIN_USERNAME, ADMIN_PASSWORD))
+				.build();
+	}
 
 	@Container
 	static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(
@@ -59,5 +73,9 @@ public abstract class BaseIntegrationTest {
 
 		// Cleanup settings
 		registry.add("app.cleanup.enabled", () -> "false");
+
+		// Admin credentials
+		registry.add("app.admin.username", () -> ADMIN_USERNAME);
+		registry.add("app.admin.password", () -> ADMIN_PASSWORD);
 	}
 }

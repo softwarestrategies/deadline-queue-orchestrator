@@ -312,4 +312,36 @@ class ScheduledEventApiFailureIntegrationTest extends BaseIntegrationTest {
 				.exchange()
 				.expectStatus().isBadRequest();
 	}
+
+	// =========================================================================
+	// Admin endpoint authentication
+	// =========================================================================
+
+	@Test
+	@DisplayName("Admin cleanup endpoint should return 401 when no credentials provided")
+	void adminCleanup_noCredentials_returnsUnauthorized() {
+		webTestClient.post()
+				.uri(BASE_URL + "/admin/cleanup")
+				.exchange()
+				.expectStatus().isUnauthorized();
+	}
+
+	@Test
+	@DisplayName("Admin cleanup endpoint should return 401 when wrong credentials provided")
+	void adminCleanup_wrongCredentials_returnsUnauthorized() {
+		webTestClient.post()
+				.uri(BASE_URL + "/admin/cleanup")
+				.headers(h -> h.setBasicAuth("admin", "wrong-password"))
+				.exchange()
+				.expectStatus().isUnauthorized();
+	}
+
+	@Test
+	@DisplayName("Admin cleanup endpoint should succeed with valid credentials")
+	void adminCleanup_validCredentials_returnsOk() {
+		adminWebTestClient().post()
+				.uri(BASE_URL + "/admin/cleanup")
+				.exchange()
+				.expectStatus().isOk();
+	}
 }

@@ -29,7 +29,6 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      acks: 1
     consumer:
       group-id: persistence-group
       enable-auto-commit: false
@@ -49,6 +48,9 @@ management:
         enabled: true
 
 app:
+  admin:
+    username: admin
+    password: changeme
   kafka:
     topics:
       ingestion: scheduled-events-ingestion
