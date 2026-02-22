@@ -36,10 +36,15 @@ public class KafkaConsumerService {
 	private final ScheduledEventRepository scheduledEventRepository;
 	private final KafkaProducerService kafkaProducerService;
 	private final Counter eventsPersistedCounter;
+	private final Counter deduplicationCacheHitCounter;
+	private final Counter deduplicationDbHitCounter;
 	private final Timer databaseBatchTimer;
 
 	/**
-	 * Versus simply using an LRU
+	 * LRU cache of recently seen message IDs for fast-path deduplication.
+	 * Avoids a DB round-trip for duplicates arriving within the same consumer's lifetime.
+	 * Evicts the oldest entry automatically once MAX_CACHE_SIZE is reached.
+	 * Cross-instance duplicates are caught by the DB unique constraint instead.
 	 */
 	private final Set<String> recentMessageIds = Collections.newSetFromMap(
 			Collections.synchronizedMap(new LinkedHashMap<>(MAX_CACHE_SIZE, 0.75f, true) {
@@ -130,17 +135,22 @@ public class KafkaConsumerService {
 	 * Check if this message has been processed recently (deduplication).
 	 */
 	private boolean isDuplicate(KafkaEventMessage message) {
-		// Check in-memory cache
+		// Check in-memory cache first — avoids a DB round-trip for hot duplicates
 		if (recentMessageIds.contains(message.getMessageId())) {
+			deduplicationCacheHitCounter.increment();
 			return true;
 		}
 
 		// Check database for exact match
-		return scheduledEventRepository.existsByUniqueKey(
+		boolean existsInDb = scheduledEventRepository.existsByUniqueKey(
 				message.getExternalJobId(),
 				message.getSource(),
 				message.getScheduledAt()
 		);
+		if (existsInDb) {
+			deduplicationDbHitCounter.increment();
+		}
+		return existsInDb;
 	}
 
 	/**

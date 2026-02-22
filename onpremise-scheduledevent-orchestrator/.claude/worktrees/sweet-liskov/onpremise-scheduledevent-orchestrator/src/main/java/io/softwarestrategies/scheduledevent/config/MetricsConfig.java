@@ -56,6 +56,20 @@ public class MetricsConfig {
 	}
 
 	@Bean
+	public Counter deduplicationCacheHitCounter(MeterRegistry registry) {
+		return Counter.builder("scheduledevent.deduplication.cache.hits")
+				.description("Duplicate messages caught by the in-memory LRU cache (DB round-trip avoided)")
+				.register(registry);
+	}
+
+	@Bean
+	public Counter deduplicationDbHitCounter(MeterRegistry registry) {
+		return Counter.builder("scheduledevent.deduplication.db.hits")
+				.description("Duplicate messages caught by the database unique key check")
+				.register(registry);
+	}
+
+	@Bean
 	public Counter httpDeliveryCounter(MeterRegistry registry) {
 		return Counter.builder("scheduledevent.delivery.http")
 				.description("Total HTTP deliveries attempted")
