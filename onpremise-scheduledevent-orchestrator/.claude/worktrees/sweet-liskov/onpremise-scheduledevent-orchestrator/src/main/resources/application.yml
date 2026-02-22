@@ -53,8 +53,6 @@ app:
     topics:
       ingestion: scheduled-events-ingestion
       dlq: scheduled-events-dlq
-      execution-http: scheduled-events-execution-http
-      execution-kafka: scheduled-events-execution-kafka
     partitions: 24
     replication-factor: 1
   http-client:

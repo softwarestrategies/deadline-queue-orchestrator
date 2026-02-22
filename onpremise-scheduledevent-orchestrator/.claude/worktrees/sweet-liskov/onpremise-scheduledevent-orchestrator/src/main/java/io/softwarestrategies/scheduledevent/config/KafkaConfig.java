@@ -44,12 +44,6 @@ public class KafkaConfig {
 	@Value("${app.kafka.topics.dlq}")
 	private String dlqTopic;
 
-	@Value("${app.kafka.topics.execution-http}")
-	private String executionHttpTopic;
-
-	@Value("${app.kafka.topics.execution-kafka}")
-	private String executionKafkaTopic;
-
 	@Value("${app.kafka.partitions:24}")
 	private int partitions;
 
