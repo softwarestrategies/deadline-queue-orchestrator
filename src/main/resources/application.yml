@@ -1,14 +1,15 @@
-
 spring:
   application:
-    name: onpremise-scheduledevent-orchestrator
+    name: scheduled-event-orchestrator
   threads:
     virtual:
       enabled: true
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   datasource:
     url: jdbc:postgresql://localhost:5432/scheduledevent?reWriteBatchedInserts=true
     username: scheduledevent
-    password: scheduledevent
+    password: changeme
     hikari:
       maximum-pool-size: 20
       minimum-idle: 5
@@ -29,7 +30,7 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      acks: 1
+      acks: 0  # Fire-and-forget for single-node Kafka
     consumer:
       group-id: persistence-group
       enable-auto-commit: false
@@ -57,6 +58,8 @@ app:
       execution-kafka: scheduled-events-execution-kafka
     partitions: 24
     replication-factor: 1
+    producer-acks: "1"            # Single-node default: leader ack only
+    min-insync-replicas: 1        # Single-node default: only 1 replica exists
   http-client:
     connect-timeout-ms: 5000
     read-timeout-ms: 30000
@@ -65,3 +68,60 @@ app:
     batch-size: 100
   cleanup:
     batch-size: 10000
+
+---
+# Development Profile - Only overrides
+spring:
+  config:
+    activate:
+      on-profile: dev
+  kafka:
+    producer:
+      acks: 0  # Fire-and-forget for single-node Kafka
+
+app:
+  kafka:
+    producer-acks: "0"            # Fire-and-forget for single-node Kafka
+    min-insync-replicas: 1        # Only 1 replica in dev
+
+logging:
+  level:
+    io.softwarestrategies.scheduledevent: INFO
+
+---
+# Production Profile - Only overrides
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:scheduledevent}?reWriteBatchedInserts=true
+    username: ${DB_USERNAME:scheduledevent}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092}
+    producer:
+      acks: all
+      properties:
+        max.in.flight.requests.per.connection: 5
+        enable.idempotence: true
+        compression.type: lz4
+        linger.ms: 10
+        batch.size: 32768
+    consumer:
+      properties:
+        max.poll.records: 500
+        session.timeout.ms: 30000
+
+app:
+  kafka:
+    partitions: 48
+    replication-factor: 3
+    producer-acks: "all"          # All ISRs must ack in prod
+    min-insync-replicas: 2        # Require 2 of 3 replicas in prod
+  scheduler:
+    poll-interval-ms: 500
+    batch-size: 500

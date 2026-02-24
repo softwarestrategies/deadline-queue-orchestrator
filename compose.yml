@@ -2,11 +2,11 @@ services:
 
   postgres:
     image: postgres:18-alpine
-    container_name: scheduledevent-postgres
+    container_name: scheduled-event-orchestrator-postgres
     environment:
       POSTGRES_DB: scheduledevent
       POSTGRES_USER: scheduledevent
-      POSTGRES_PASSWORD: scheduledevent
+      POSTGRES_PASSWORD: changeme
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
@@ -19,13 +19,13 @@ services:
       retries: 5
       start_period: 30s
     networks:
-      - scheduledevent-network
+      - scheduled-event-orchestrator-network
 
   # ==================== Kafka (KRaft mode) ====================
 
   kafka:
     image: confluentinc/cp-kafka:7.6.0
-    container_name: scheduledevent-kafka
+    container_name: scheduled-event-orchestrator-kafka
     user: root
     ports:
       - "9092:9092"
@@ -59,15 +59,15 @@ services:
       retries: 5
       start_period: 30s
     networks:
-      - scheduledevent-network
+      - scheduled-event-orchestrator-network
 
   prometheus:
     image: prom/prometheus:v2.50.1
-    container_name: scheduledevent-prometheus
+    container_name: scheduled-event-orchestrator-prometheus
     ports:
       - "9090:9090"
     volumes:
-      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./compose-config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -76,29 +76,29 @@ services:
       - '--web.console.templates=/usr/share/prometheus/consoles'
       - '--web.enable-lifecycle'
     networks:
-      - scheduledevent-network
+      - scheduled-event-orchestrator-network
 
   grafana:
     image: grafana/grafana:10.4.1
-    container_name: scheduledevent-grafana
+    container_name: scheduled-event-orchestrator-grafana
     ports:
       - "3000:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=changeme
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_LOG_LEVEL=debug
     volumes:
-      - ./docker/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
-      - ./docker/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./compose-config/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./compose-config/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
       - grafana_data:/var/lib/grafana
     depends_on:
       - prometheus
     networks:
-      - scheduledevent-network
+      - scheduled-event-orchestrator-network
 
 networks:
-  scheduledevent-network:
+  scheduled-event-orchestrator-network:
     driver: bridge
 
 volumes:

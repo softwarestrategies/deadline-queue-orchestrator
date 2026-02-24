@@ -62,6 +62,12 @@ public class KafkaConfig {
 	@Value("${spring.kafka.listener.concurrency:10}")
 	private int concurrency;
 
+	@Value("${app.kafka.producer-acks:1}")
+	private String producerAcks;
+
+	@Value("${app.kafka.min-insync-replicas:1}")
+	private int minInsyncReplicas;
+
 	@Bean
 	public KafkaAdmin kafkaAdmin() {
 		Map<String, Object> configs = new HashMap<>();
@@ -78,7 +84,7 @@ public class KafkaConfig {
 				.replicas(replicationFactor)
 				.config("retention.ms", String.valueOf(7 * 24 * 60 * 60 * 1000L)) // 7 days
 				.config("cleanup.policy", "delete")
-				.config("min.insync.replicas", "2")
+				.config("min.insync.replicas", String.valueOf(minInsyncReplicas))
 				.build();
 	}
 
@@ -118,15 +124,17 @@ public class KafkaConfig {
 		configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
 		configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JacksonJsonSerializer.class);
 
-		// High-throughput settings
-		configProps.put(ProducerConfig.ACKS_CONFIG, "all");
+		// Durability level is profile-driven (dev: "0" fire-and-forget, prod: "all")
+		configProps.put(ProducerConfig.ACKS_CONFIG, producerAcks);
 		configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
 		configProps.put(ProducerConfig.BATCH_SIZE_CONFIG, 32768); // 32KB
 		configProps.put(ProducerConfig.LINGER_MS_CONFIG, 10); // Wait up to 10ms to batch
 		configProps.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 67108864L); // 64MB
 		configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "lz4");
-		configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-		configProps.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
+		// Idempotence requires acks=all; disable for dev (acks=0 or acks=1)
+		boolean idempotent = "all".equals(producerAcks);
+		configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, idempotent);
+		configProps.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, idempotent ? 5 : 1);
 
 		return new DefaultKafkaProducerFactory<>(configProps);
 	}
