@@ -1,4 +1,4 @@
-# Future improvements
+# Future improvements  (WIP, rough notes)
 
 ## Concerns Worth Addressing
 
@@ -76,7 +76,9 @@ EventController (/api/v1/test-events) appears to be a leftover stub from an earl
 getCleanupStats() in EventCleanupService returns a CleanupStats record but the comment says "This would require a count query - simplified here" — the method returns config values, not actual stats. Either implement it properly or remove it.
 AsyncConfig defines eventProcessingExecutor and schedulerExecutor beans that are never injected anywhere (we use Executors.newVirtualThreadPerTaskExecutor() inline in the poll loop). They are harmless but they are dead config — either use them or remove them.
 management.endpoints.web.exposure.include: "*" exposes every actuator endpoint including /actuator/env (prints all config including env vars) and /actuator/heapdump. In production this should be locked down to at minimum health,info,prometheus.
+
 Verdict
+
 The architecture is production-ready for 10M events/day on a single well-sized node, and scales horizontally with no coordination changes needed. The three things I would fix before going to production at scale are:
 
 Increase maximum-pool-size to ~50 to avoid connection starvation under concurrent delivery load
