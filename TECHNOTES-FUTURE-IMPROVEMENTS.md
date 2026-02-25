@@ -1,5 +1,33 @@
 # Future improvements
 
+## Concerns Worth Addressing
+
+- In-memory LRU cache breaks under horizontal scaling — each pod has its own cache, so duplicate Kafka messages can slip through to DB on multi-replica deployments. The DB unique constraint catches it, but adds retry overhead. Consider Redis-based deduplication.
+
+- No exponential backoff on retries — currently just increments retryCount. Under load spikes, retries all fire ASAP and compound the problem. Recommend adding nextRetryAt with backoff (e.g. 2^retryCount * 30s).
+
+- Lock expiration (5 min) is hardcoded — should be in application.yml alongside the other tunable properties.
+
+- Admin cleanup endpoint has no auth — I saw this was added in a recent commit (d475962), but worth confirming the Basic Auth is correctly wired in the security config.
+
+- acks: 0 in dev profile — fire-and-forget means events can silently drop. Fine for dev, but worth a comment to ensure it never bleeds into prod config accidentally.
+
+- No circuit breaker on HTTP delivery — if a downstream webhook is unhealthy, events pile up in retry state. Resilience4j CircuitBreaker would protect the scheduler loop.
+
+## Performance Profile
+
+At 10M events/day (~115/sec avg, ~1000/sec peak):
+
+- 48 Kafka partitions (prod) is appropriately sized
+- reWriteBatchedInserts=true on the JDBC URL is a good catch
+- HikariCP at 50–100 connections in prod is reasonable
+- The @Scheduled poll at 500ms in prod could create latency jitter at high load — worth profiling with your actual event distribution
+
+
+
+
+
+
 ## Architecture & Scale Assessment — 10M+ Events/Day
 
 Yes, it can handle 10M+ events/day on a single node with reasonable hardware, and it scales horizontally without coordination. The core design decisions are sound: Kafka as the ingestion buffer, SELECT FOR UPDATE SKIP LOCKED for lock-free distributed polling, monthly partitioning, virtual threads for concurrent delivery. These are the right choices. The bugs we fixed were what stood between the design and it actually working.

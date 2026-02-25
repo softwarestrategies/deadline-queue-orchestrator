@@ -1,6 +1,10 @@
-# On-Premise Scheduled Event Orchestrator
+# Scheduled Event Orchestrator
 
-A high-throughput scheduled event orchestrator system designed to handle **10 million+ events per day** with thundering herd protection.
+A production-grade, high-throughput Scheduled Event Orchestration service designed for 10M+ events/day and flexible enough to work with several client systems willing to abide to its API guidelines
+
+I needed this for another personal project that I am working on.  Plus it seemed like a fun challenge.  And I am hoping (unlikely as it maybe be) that I will be able to use it as a basis (or inspiration) for a production-grade microservice for the company that I am currently working for.
+
+**This was built by me, helped (significantly) by using Claude Code for reviewing, debugging and testing.**
 
 ## Tech Stack
 
@@ -8,16 +12,26 @@ A high-throughput scheduled event orchestrator system designed to handle **10 mi
 - **Spring Boot 4.0.2** (Spring Framework 7)
 - **Apache Kafka** (KRaft mode) for message buffering
 - **PostgreSQL 18** with range partitioning
-- **Micrometer + Prometheus + Grafana** for monitoring
+- **Micrometer + Prometheus + Grafana** for monitoring & observability
 - **Docker Compose** for deployment
 - **Testcontainers** for integration testing
 
 ## Architecture
 
+### Core Components
+
+There are 5 primary services with clear single responsibilities:
+
+- **ScheduledEventService** - Orchestration + validation
+- **EventSchedulerService** - Polling loop (@Scheduled + SELECT FOR UPDATE SKIP LOCKED)
+- **EventPersistenceService** - DB state management
+- **EventDeliveryService** - HTTP/Kafka delivery with retry logic
+- **KafkaConsumerService** - Batch ingestion + deduplication
+
 ### Two-Phase Ingestion Pattern
 
 ```
-REST API → Kafka → Database → Scheduler → Delivery (HTTP/Kafka)
+REST API → Kafka (ingestion) → PostgreSQL (persistence) → Scheduler (delivery via HTTP or Kafka)
 ```
 
 This pattern provides:
@@ -25,6 +39,15 @@ This pattern provides:
 - **Ordering guarantees** per client via partition keys
 - **Asynchronous processing** with virtual threads
 - **Distributed processing** with SELECT FOR UPDATE SKIP LOCKED
+
+### Design Strengths
+
+- Distributed locking via SELECT FOR UPDATE SKIP LOCKED — solid approach for multi-pod deployments
+- Two-layer deduplication: in-memory LRU (100K entries) + DB unique constraint
+- Range partitioning on partition_key (date-based) for efficient cleanup and query pruning
+- Virtual threads throughout for I/O-bound concurrency — appropriate for this workload
+- Dead Letter Queue strategy is well-implemented
+- Clean separation: controller → service → repository
 
 ## Quick Start
 
@@ -48,7 +71,6 @@ docker-compose up -d --build
 | Service | URL |
 |---------|-----|
 | Application | http://localhost:8080 |
-| Kafka UI | http://localhost:8081 |
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 (admin/admin) |
 | Actuator | http://localhost:8080/actuator |
@@ -62,14 +84,17 @@ POST /api/v1/events
 Content-Type: application/json
 
 {
-  "external_job_id": "job-12345",
-  "source": "billing-service",
-  "scheduled_at": "2026-02-17T10:00:00Z",
+  "external_job_id": "order-12345",
+  "source": "order-service",
+  "scheduled_at": "2026-02-24T15:18:00-08:00",
   "delivery_type": "HTTP",
-  "destination": "https://example.com/webhook",
+  "destination": "http://localhost:8080/api/v1/test-events",
   "payload": {
-    "action": "process-invoice",
-    "invoiceId": "INV-001"
+    "orderId": "12345",
+    "customerId": "cust-789hi.",
+    "action": "process_payment",
+    "amount": 99.99,
+    "currency": "USD"
   },
   "max_retries": 3
 }
