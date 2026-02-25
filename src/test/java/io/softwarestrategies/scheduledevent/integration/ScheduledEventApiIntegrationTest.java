@@ -265,6 +265,26 @@ class ScheduledEventApiIntegrationTest extends BaseIntegrationTest {
 				.expectStatus().isOk();
 	}
 
+	@Test
+	@DisplayName("Admin cleanup should return 401 without credentials")
+	void adminCleanup_withoutAuth_returns401() {
+		webTestClient.post()
+				.uri(BASE_URL + "/admin/cleanup")
+				.exchange()
+				.expectStatus().isUnauthorized();
+	}
+
+	@Test
+	@DisplayName("Admin cleanup should return 200 with valid credentials")
+	void adminCleanup_withAuth_returns200() {
+		adminWebTestClient().post()
+				.uri(BASE_URL + "/admin/cleanup")
+				.exchange()
+				.expectStatus().isOk()
+				.expectBody(ApiResponse.class)
+				.value(response -> assertThat(response.isSuccess()).isTrue());
+	}
+
 	private ScheduledEventRequest createTestRequest() {
 		return ScheduledEventRequest.builder()
 				.externalJobId(UUID.randomUUID().toString())

@@ -69,6 +69,9 @@ app:
     lock-duration-minutes: 5
   cleanup:
     batch-size: 10000
+  admin:
+    username: admin
+    password: changeme    # dev only — override via env vars in prod
 
 ---
 # Development Profile - Only overrides
@@ -126,3 +129,6 @@ app:
   scheduler:
     poll-interval-ms: 500
     batch-size: 500
+  admin:
+    username: ${ADMIN_USERNAME:admin}
+    password: ${ADMIN_PASSWORD}       # required env var in prod, no default
