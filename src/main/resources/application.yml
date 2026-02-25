@@ -30,7 +30,9 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      acks: 0  # Fire-and-forget for single-node Kafka
+      # NOTE: acks and other producer tuning are NOT configured here.
+      # KafkaConfig.java builds its own ProducerFactory, so spring.kafka.producer.*
+      # is ignored by Spring Boot auto-config. See app.kafka.producer-acks instead.
     consumer:
       group-id: persistence-group
       enable-auto-commit: false
@@ -79,13 +81,11 @@ spring:
   config:
     activate:
       on-profile: dev
-  kafka:
-    producer:
-      acks: 0  # Fire-and-forget for single-node Kafka
 
 app:
   kafka:
-    producer-acks: "0"            # Fire-and-forget for single-node Kafka
+    producer-acks: "0"  # WARNING: DEV/TEST ONLY — fire-and-forget, events can drop silently.
+                        # Overridden to "all" in the prod profile. Do NOT use in prod.
     min-insync-replicas: 1        # Only 1 replica in dev
 
 logging:
@@ -107,14 +107,9 @@ spring:
       minimum-idle: 10
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092}
-    producer:
-      acks: all
-      properties:
-        max.in.flight.requests.per.connection: 5
-        enable.idempotence: true
-        compression.type: lz4
-        linger.ms: 10
-        batch.size: 32768
+    # NOTE: spring.kafka.producer.* is intentionally absent — all producer settings
+    # (acks, idempotence, compression, batching) are owned by KafkaConfig.java which
+    # builds its own ProducerFactory and reads from app.kafka.producer-acks below.
     consumer:
       properties:
         max.poll.records: 500
